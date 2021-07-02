@@ -1,0 +1,15 @@
+#!/bin/sh
+
+KEY=$(dmenu -p 'Enter passphrase: ' -sb '#000000' -sf '#c6f24b' -nb '#000000' -nf '#000000' </dev/null)
+ID=
+if [ "$1" ]; then
+	ID="*$1*"
+else
+	ID=$(totp -K - -l <<FOO | cut -d ' ' -f1 | dmenu -sb '#000000' -sf '#c6f24b' -nb '#000000' -nf '#c0c0c0'
+$KEY
+FOO
+	)
+fi
+totp -K - -t "$ID" << FOO | head -n1 | tr -d '\r\n' | xclip -selection clipboard
+$KEY
+FOO
