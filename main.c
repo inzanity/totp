@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <inttypes.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -399,6 +400,7 @@ void write_filter_key(uint8_t digest,
 }
 
 enum cmd {
+	CMD_NONE,
 	CMD_TOK,
 	CMD_LIST,
 	CMD_ADD,
@@ -452,12 +454,24 @@ static size_t uridecode(char *buf, size_t len, bool getarg)
 	return w - buf;
 }
 
+static void setecho(bool echo)
+{
+	struct termios tio;
+	if (tcgetattr(STDIN_FILENO, &tio))
+		return;
+	if (echo)
+		tio.c_lflag |= ECHO;
+	else
+		tio.c_lflag &= ~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &tio);
+}
+
 int main(int argc, char *argv[])
 {
 	int fd;
 	int r;
 	struct sha1 d;
-	enum cmd cmd;
+	enum cmd cmd = CMD_NONE;
 	char *totpuri;
 	const char *key = NULL;
 	const char *keyfile = NULL;
@@ -505,21 +519,51 @@ int main(int argc, char *argv[])
 
 	} ARGEND
 
+	if (cmd == CMD_NONE && !argc)
+		usage();
+
 	sha1_init(&d);
 
 	if (key) {
 		sha1_update(&d, key, strlen(key));
-	} else if (keyfile) {
-		fd = open(keyfile, O_RDONLY);
-		if (fd < 0)
-			exit(1);
-		while ((r = read(fd, d.buffer + (d.len & 63),
-				 sizeof(d.buffer) - (d.len & 63))) > 0) {
-			d.len += r;
-			if (!(d.len & 63))
-				sha1_update(&d, d.buffer, sizeof(d.buffer));
+	} else {
+		size_t l = 0;
+		if (keyfile && strcmp(keyfile, "-")) {
+			fd = open(keyfile, O_RDONLY);
+		} else {
+			fd = STDIN_FILENO;
+
+			if (!keyfile) {
+				fprintf(stderr, "Enter passphrase: ");
+				setecho(false);
+			}
 		}
-		close(fd);
+
+		while ((r = read(fd, d.buffer + l,
+				 sizeof(d.buffer) - l)) > 0) {
+			size_t ll = strncspn((const char *)d.buffer + l, r, "\r\n");
+
+			if (ll < (size_t)r) {
+				l += ll;
+				break;
+			}
+
+			l += r;
+			if (l < sizeof(d.buffer))
+				continue;
+			sha1_update(&d, d.buffer, sizeof(d.buffer));
+			l = 0;
+		}
+
+		if (l)
+			sha1_update(&d, d.buffer, l);
+
+		if (!keyfile) {
+			fprintf(stderr, "\n");
+			setecho(true);
+		} else if (strcmp(keyfile, "-")) {
+			close(fd);
+		}
 	}
 
 	sha1_finish(&d);
@@ -643,6 +687,9 @@ int main(int argc, char *argv[])
 			break;
 		}
 
+		case CMD_NONE:
+			keyquery = argv[0];
+			/* fall-through */
 		case CMD_TOK:
 			free(newsecretfile);
 			fd = open(secretfile, O_RDONLY);
