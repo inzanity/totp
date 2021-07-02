@@ -5,7 +5,14 @@ OBJS = ${SOURCES:.c=.o}
 TEST_SOURCES = sha1.c sha256.c sha512.c util.c test.c
 TEST_OBJS = ${TEST_SOURCES:.c=.o}
 
-all: totp
+VERSION = 0.1
+PREFIX = /usr/local
+BINDIR = ${PREFIX}/bin
+MANDIR = ${PREFIX}/share/man/man1
+
+NAME=totp
+
+all: ${NAME}
 
 totp: ${OBJS}
 	${CC} -o $@ ${OBJS} ${LDFLAGS}
@@ -18,3 +25,11 @@ test: ${TEST_OBJS};
 
 clean:
 	rm ${OBJS}
+
+install: all
+	mkdir -p "${DESTDIR}${BINDIR}"
+	cp -f "${NAME}" "${DESTDIR}${BINDIR}"
+	chmod 755 "${DESTDIR}${BINDIR}/${NAME}"
+	mkdir -p "${DESTDIR}${MANDIR}"
+	cp -f "${NAME}.1" "${DESTDIR}${MANDIR}"
+	chmod 644 "${DESTDIR}${MANDIR}/${NAME}.1"

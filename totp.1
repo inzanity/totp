@@ -1,0 +1,83 @@
+.Dd Jul 2, 2021
+.Dt TOTP 1
+.Os
+.
+.Sh NAME
+.Nm totp
+.Nd authentication token manager
+.
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl k Ar passphrase
+.Op Fl K Ar file
+.Op Fl l
+.Op Fl a Ar uri
+.Op Fl d Ar filter
+.Op Fl t Ar filter
+.Op Fl e
+.Ek
+.
+.Sh DESCRIPTION
+.Bd -filled
+.Nm
+is a TOTP secret manager and token generator.
+.Ed
+.
+.Sh OPTIONS
+totp options:
+.Bl -tag -width -k_passphrase
+.
+.It Fl k Ar passphrase
+Use provided passphrase for encrypting and decrypting the secret database.
+.
+.It Fl K Ar file
+Read encryption/decryption passphrase from file, - for standard input.
+.
+.It Fl l
+List names and providers of all secrets in database.
+.
+.It Fl a Ar uri
+Add uri to secrets database.
+.
+.It Fl d Ar filter
+Remove secrets from database that match filter.
+.
+.It Fl t Ar filter
+Generate authentication tokens with all secrets that match filter.
+.
+.It Fl e
+Export all secrets from database as uris.
+.
+.Sh URI FORMAT
+URIs follow the google-authenticator Key Uri Format with otpauth protocol:
+otpauth://totp/accountname?secret=<secret>
+.
+The secret should be encoded in RFC3548 Base32 format, without padding.
+Supported URI query string parameters:
+.Bl -tag -width "algorithm"
+.It Ar issuer
+Defines the issuing organisation of the secret.
+.It Ar algorithm
+Defines the digest algorithm used to generate tokens, should be one of SHA1,
+SHA256, SHA512; defaults to SHA1.
+.It Ar digits
+Defines how many digits the generated token should have, should be 6 or 8.
+Defaults to 6.
+.It Ar period
+Defines the validity period of a token in seconds. Defaults to 30.
+.
+.Sh FILTER
+In deletion and token generation the secret is chosen by matching the
+accountname against the provided filter. The matching is done with fnmatch()
+so asterisks can be used, but the accountname must fully match the filter.
+For substring matches, use leading and trailing asterisks.
+.
+If an issuer: prefix is present in accountname during addition, then it will
+be included in the matching, but a query string parameter issuer is excluded.
+.
+.Sh KNOWN BUGS
+If multiple secrets match a filter in token generation, a token will be
+generated with each, in the same order as the keys were added. There is no
+output indicating which key was used.
+

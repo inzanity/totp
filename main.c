@@ -412,6 +412,8 @@ void usage()
 {
 	fprintf(stderr,
 		"Usage: totp [OPTIONS]\n"
+		"-k <pass>\tpassphrase for database encryption\n"
+		"-K <file>\tread encryption passphrase from file\n"
 		"-l\tlist known secrets\n"
 		"-a <uri>\tadd uri to secrets\n"
 		"-d <filter>\tremove secrets matching filter\n"
